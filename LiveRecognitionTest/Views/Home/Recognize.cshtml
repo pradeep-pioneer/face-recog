@@ -1,0 +1,61 @@
+﻿
+@{
+    ViewBag.Title = "Recognize";
+}
+
+<div class="container">
+    <div id="preview-group">
+        <video id="source-stream" width="400" height="300" autoplay="autoplay"></video><br />
+        <button id="capture" onclick="onCaptureClick()" class="btn btn-info">Capture</button><br />
+    </div>
+    <div id="capture-group">
+        <h1>Your Picture</h1>
+        <canvas id="drawable-canvas0" width="400" height="300"></canvas><br />
+        <button id="send" onclick="onSendClick()" class="btn btn-info">Send for recognition</button><br />
+    </div>
+    <span id="remaining">Click "Capture" button to capture your photo</span>
+    <img id="result" />
+</div>
+<script type="text/javascript">
+    var mediaStream;
+    var success = function (stream) {
+        var domURL = window.URL || window.webkitURL;
+        //start streaming via the video element
+        document.getElementById('source-stream').src =
+        domURL ? domURL.createObjectURL(stream) : stream;
+        mediaStream = stream;
+    };
+    var error = function (error) {
+        alert('There was an error while trying to get the webcam handle' + error);
+    }
+    var loadWebCam = function () {
+        $('#capture-group').hide();
+        $('#preview-group').show();
+        navigator.getUserMedia_ = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        //Get the API according to the browser.
+        navigator.getUserMedia_({ video: true, audio: false }, success, error);
+    };
+    var onCaptureClick = function () {
+        var video = document.getElementById("source-stream");
+        var canvas = document.getElementById("drawable-canvas0");
+        var context = canvas.getContext("2d");
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        $('#preview-group').hide();
+        $('#capture-group').show();
+        $('#remaining').text('Now click on send for recognition button!');
+        mediaStream.getTracks()[0].stop();
+    };
+
+    var onSendClick = function () {
+        var canvas = document.getElementById("drawable-canvas0");
+        var imageData = canvas.toDataURL("image/png");
+        var postdata = { 'image1Data': imageData };
+        $.post("/LiveRecognitionTest/home/Recognize", postdata, function (data, status, jxQhr) {
+            var imageData = data.Data;
+            $('#result').attr('src', imageData);
+        });
+    };
+
+    loadWebCam();
+</script>
+

@@ -2,30 +2,83 @@
     ViewBag.Title = "Home Page";
 }
 
-<div class="jumbotron">
-    <h1>ASP.NET</h1>
-    <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
-    <p><a href="http://asp.net" class="btn btn-primary btn-lg">Learn more &raquo;</a></p>
+<div class="container">
+    <video id="source-stream" width="400" height="300" autoplay="autoplay"></video><br />
+    <span id="remaining">Click capture 5 times</span>
+    <button id="capture" onclick="onCaptureClick()" class="btn btn-info">Capture</button><br />
+    <input type="text" id="subject-name" placeholder="Enter Subject Name" class="form-control" /><br />
+    <button id="send" onclick="onSendClick()" class="btn btn-info">Send for Training</button><br />
+    <h1>Picture 1</h1>
+    <canvas id="drawable-canvas0" width="400" height="300"></canvas>
+    <h1>Picture 2</h1>
+    <canvas id="drawable-canvas1" width="400" height="300"></canvas>
+    <h1>Picture 3</h1>
+    <canvas id="drawable-canvas2" width="400" height="300"></canvas>
+    <h1>Picture 4</h1>
+    <canvas id="drawable-canvas3" width="400" height="300"></canvas>
+    <h1>Picture 5</h1>
+    <canvas id="drawable-canvas4" width="400" height="300"></canvas>
 </div>
+<script type="text/javascript">
+    var imageCount = 0;
+    var success = function (stream) {
+        var domURL = window.URL || window.webkitURL;
+        //start streaming via the video element
+        document.getElementById('source-stream').src =
+        domURL ? domURL.createObjectURL(stream) : stream;
+    };
+    var error = function (error) {
+        alert('There was an error while trying to get the webcam handle' + error);
+    }
+    var loadWebCam = function () {
+        $('#subject-name').hide();
+        $('#send').hide();
+        navigator.getUserMedia_ = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        //Get the API according to the browser.
+        navigator.getUserMedia_({ video: true, audio: false }, success, error);
+    };
+    var onCaptureClick = function () {
+        if (imageCount < 5) {
+            var video = document.getElementById("source-stream");
+            var canvas = document.getElementById("drawable-canvas" + imageCount);
+            var context = canvas.getContext("2d");
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            imageCount++;
+            $('#remaining').text('Click capture ' + (5 - imageCount) + ' times');
+            if (imageCount == 5) {
+                $('#capture').hide();
+                $('#remaining').text("Enter the subject name and Click on 'Send for training' button to register face");
+                $('#subject-name').show();
+                $('#send').show();
+                $('#subject-name').focus();
+            }
+        }
+    };
 
-<div class="row">
-    <div class="col-md-4">
-        <h2>Getting started</h2>
-        <p>
-            ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
-            enables a clean separation of concerns and gives you full control over markup
-            for enjoyable, agile development.
-        </p>
-        <p><a class="btn btn-default" href="http://go.microsoft.com/fwlink/?LinkId=301865">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Get more libraries</h2>
-        <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-        <p><a class="btn btn-default" href="http://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
-    </div>
-    <div class="col-md-4">
-        <h2>Web Hosting</h2>
-        <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-        <p><a class="btn btn-default" href="http://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
-    </div>
-</div>
+    var onSendClick = function () {
+        var subjectName = $('#subject-name').val();
+        if (subjectName == '') {
+            alert('Subject name is required');
+            $('#subject-name').focus();
+        }else {
+            var image1data = document.getElementById('drawable-canvas0').toDataURL("image/png");
+            var image2data = document.getElementById('drawable-canvas1').toDataURL("image/png");
+            var image3data = document.getElementById('drawable-canvas2').toDataURL("image/png");
+            var image4data = document.getElementById('drawable-canvas3').toDataURL("image/png");
+            var image5data = document.getElementById('drawable-canvas4').toDataURL("image/png");
+            var postData = {
+                'subjectName': subjectName,
+                'image1Data': image1data,
+                'image2Data': image2data,
+                'image3Data': image3data,
+                'image4Data': image4data,
+                'image5Data': image5data,
+            }
+            $.post('/LiveRecognitionTest/home/index', postData, function (data, status, jxQhr) {
+                alert(data.Result);
+            });
+        }
+    };
+    loadWebCam();
+</script>
