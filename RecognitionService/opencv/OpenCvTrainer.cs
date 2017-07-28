@@ -61,7 +61,7 @@ namespace RecognitionService.opencv
                 var resized = facialFeatures.Resize(100, 100, Inter.Cubic);
                 var prediction = FaceRecognizerData.Predict(resized);
                 string name = "Unknown";
-                if (prediction.Label != -1 && Subjects.ContainsKey(prediction.Label))
+                if (prediction.Label != -1 && Subjects.ContainsKey(prediction.Label) && prediction.Distance<1700)
                     name = Subjects[prediction.Label];
                 original.Draw(rect, new Bgr(Color.Pink));
                 CvInvoke.PutText(original, name, new Point(rect.Left, rect.Top), FontFace.HersheyPlain,2,new MCvScalar(255,255,255));
@@ -92,7 +92,7 @@ namespace RecognitionService.opencv
                     Subjects.Add(Subjects.Count, subjectName.ToLower());
                 subjectId = Subjects.FirstOrDefault(x => x.Value.ToLower().Equals(subjectName.ToLower())).Key;
 
-                List<Image<Gray, byte>> samples = new List<Image<Gray, byte>>();
+                //List<Image<Gray, byte>> samples = new List<Image<Gray, byte>>();
                 List<int> labels = new List<int>();
                 foreach (var item in imagesData)
                 {
@@ -114,7 +114,7 @@ namespace RecognitionService.opencv
                         //labels.Add(subjectId);
                     }
                 }
-                if (samples.Count > 0)
+                if (SubjectSamples.Count > 0)
                 {
                     //now train the recognizer
                     //OpenCvTrainer.FaceRecognizerData.Train(samples.ToArray(), labels.ToArray());
