@@ -16,15 +16,31 @@ namespace RecognitionService.opencv
     {
         public static Dictionary<int, string> Subjects { get; set; }
         public static CascadeClassifier DetectionClassifier { get; set; }
+        public static List<Tuple<int, Image<Gray, byte>>> SubjectSamples { get; set; }
 
-        public static LBPHFaceRecognizer FaceRecognizer { get; set; }
+        public static EigenFaceRecognizer FaceRecognizerData { get; set; }
 
         static OpenCvTrainer()
         {
             Subjects = new Dictionary<int, string>();
+            SubjectSamples = new List<Tuple<int, Image<Gray, byte>>>();
             var haarPath = @"haarcascade_frontalface_default.xml";
             DetectionClassifier = new CascadeClassifier(haarPath);
-            FaceRecognizer = new LBPHFaceRecognizer();
+            FaceRecognizerData = new EigenFaceRecognizer();
+            if (File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingFile.ocv")))
+                FaceRecognizerData.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingFile.ocv"));
+            if(File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingSubjects.txt")))
+            {
+                var lines = File.ReadAllLines((Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingSubjects.txt")));
+                foreach (var line in lines)
+                {
+                    if (!(string.IsNullOrEmpty(line)) && line.Contains(":"))
+                    {
+                        var items = line.Split(':');
+                        Subjects.Add(int.Parse(items[0]), items[1]);
+                    }
+                }
+            }
         }
 
         public static dynamic Predict(string imageData)
@@ -43,8 +59,10 @@ namespace RecognitionService.opencv
                 var rect = rects[0];
                 var facialFeatures = grey.GetSubRect(rect);
                 var resized = facialFeatures.Resize(100, 100, Inter.Cubic);
-                var prediction = FaceRecognizer.Predict(resized);
-                var name = Subjects[prediction.Label];
+                var prediction = FaceRecognizerData.Predict(resized);
+                string name = "Unknown";
+                if (prediction.Label != -1 && Subjects.ContainsKey(prediction.Label))
+                    name = Subjects[prediction.Label];
                 original.Draw(rect, new Bgr(Color.Pink));
                 CvInvoke.PutText(original, name, new Point(rect.Left, rect.Top), FontFace.HersheyPlain,2,new MCvScalar(255,255,255));
                 return new { Result = "Success", Data = getImageString(original.Bitmap) };
@@ -72,8 +90,8 @@ namespace RecognitionService.opencv
                 var subjectId = -1;
                 if (Subjects.Count(x => x.Value.ToLower().Equals(subjectName.ToLower())) == 0)
                     Subjects.Add(Subjects.Count, subjectName.ToLower());
-                else
-                    subjectId = Subjects.FirstOrDefault(x => x.Value.ToLower().Equals(subjectName.ToLower())).Key;
+                subjectId = Subjects.FirstOrDefault(x => x.Value.ToLower().Equals(subjectName.ToLower())).Key;
+
                 List<Image<Gray, byte>> samples = new List<Image<Gray, byte>>();
                 List<int> labels = new List<int>();
                 foreach (var item in imagesData)
@@ -91,14 +109,27 @@ namespace RecognitionService.opencv
                         var rect = rects[0];
                         var facialFeatures = grey.GetSubRect(rect);
                         var resized = facialFeatures.Resize(100, 100, Inter.Cubic);
-                        samples.Add(resized);
-                        labels.Add(subjectId);
+                        SubjectSamples.Add(new Tuple<int, Image<Gray, byte>>(subjectId, resized));
+                        //samples.Add(resized);
+                        //labels.Add(subjectId);
                     }
                 }
                 if (samples.Count > 0)
                 {
                     //now train the recognizer
-                    OpenCvTrainer.FaceRecognizer.Train(samples.ToArray(), labels.ToArray());
+                    //OpenCvTrainer.FaceRecognizerData.Train(samples.ToArray(), labels.ToArray());
+                    var sampleImages = SubjectSamples.Select(x => x.Item2).ToArray();
+                    var sampleLabels = SubjectSamples.Select(x => x.Item1).ToArray();
+                    OpenCvTrainer.FaceRecognizerData.Train(sampleImages, sampleLabels);
+                    OpenCvTrainer.FaceRecognizerData.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingFile.ocv"));
+                    if(File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingSubjects.txt")))
+                        File.Delete(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingSubjects.txt"));
+                    var writer = File.CreateText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "trainingSubjects.txt"));
+                    foreach (var item in Subjects)
+                    {
+                        writer.WriteLine(string.Format("{0}:{1}", item.Key, item.Value));
+                    }
+                    writer.Close();
                     message = "Success";
                 }
                 else

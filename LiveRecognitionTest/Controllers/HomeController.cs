@@ -24,7 +24,10 @@ namespace LiveRecognitionTest.Controllers
         public ActionResult Recognize(PostedData data)
         {
             var returnObject = JsonConvert.DeserializeObject<dynamic>(PostAndRecognize(data));
-            return Json(new { Result = "Success", Data = returnObject.Data });
+            if (returnObject.Result.ToString() == "Success")
+                return Json(new { Result = returnObject.Result.ToString(), Data = returnObject.Data.ToString() });
+            else
+                return Json(new { Result = "Failure", Data = data.Image1Data });
         }
 
         private string PostAndRecognize(PostedData data)
